@@ -141,14 +141,15 @@ parse_genomic_input <- function(genomic_str) {
 }
 
 
+#Funcion validacion formato alelo
 validate_allele <- function(allele) {
   grepl("^[ACGT-]+$", allele)
 }
 
 
+#Funcion validacion con GRCh38
 validate_ref_allele <- function(chr, pos, ref_input) {
   
-  # Si inserción, no validar
   if (ref_input == "-") return(TRUE)
   
   tryCatch({
