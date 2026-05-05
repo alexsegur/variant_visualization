@@ -1,8 +1,9 @@
+source("functions.R", local = TRUE)
 
 server <- function(input, output, session) {
   
   vcf_df <- reactiveVal(NULL) # dataframe variante/es para tabla
-  jbrowse_region <- reactiveVal(NULL) # región a mostrar
+  jbrowse_region <- reactiveVal(NULL) # región a mostrar (chr:start..end)
   
   # Apartado busqueda:
   
@@ -52,7 +53,7 @@ server <- function(input, output, session) {
   observeEvent(input$load_vcf_btn, {
     req(input$load_vcf_btn)
     
-    has_plain <- !is.null(input$vcf_plain) &&
+    has_plain <- !is.null(input$vcf_plain) && #TODO: Mejorar Validación triplicada
       !is.null(input$vcf_plain$datapath) &&
       nzchar(input$vcf_plain$datapath)
     
@@ -98,9 +99,16 @@ server <- function(input, output, session) {
     })
   })
   
+  # Gestión de tabla de variantes:
+  
   variants_table_data <- reactive({
     if (!is.null(vcf_df())) return(vcf_df())
     NULL
+  })
+  
+  output$variants_table <- renderDT({
+    req(variants_table_data())
+    datatable(variants_table_data(), selection = "single")
   })
   
   proxy <- dataTableProxy("variants_table")
@@ -110,23 +118,12 @@ server <- function(input, output, session) {
     selectRows(proxy, 1)
   })
   
-  output$variants_table <- renderDT({
-    req(variants_table_data())
-    datatable(variants_table_data(), selection = "single")
-  })
-  
-  variant_select <- reactive({
-    req(input$variants_table_rows_selected)
-    
-    row <- variants_table_data()[input$variants_table_rows_selected, ]
-    
-    paste0(as.character(GenomicRanges::seqnames(row)), ":", row$start)
-  })
-  
   observeEvent(input$variants_table_rows_selected, {
     row <- variants_table_data()[input$variants_table_rows_selected, ]
     jbrowse_region(make_region(row$CHR, row$POS, input$window_size))
   })
+  
+  #Gestion de navegador genómico JBrowse:
   
   observeEvent(jbrowse_region(), {
     output$jbrowse <- renderJBrowseR({

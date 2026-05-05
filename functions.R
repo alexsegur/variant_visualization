@@ -1,4 +1,6 @@
 
+## TODO: Falta separar validaciones de functions.R
+
 
 # De vcf + tabix a dataframe (para opción de carga de archivos)
 vcf_to_df <- function(path) {
@@ -82,7 +84,7 @@ parse_hgvsc <- function(hgvsc) {
 
 
 # Función para parsear formato genómico "13 32889692 T/C"
-# Únicamente funciona con formato: "Chr pos ref/alt"
+# Únicamente funciona con formato: "Chr pos ref/alt", vacío = "-"
 parse_genomic_input <- function(genomic_str) {
 
   parts <- strsplit(trimws(genomic_str), "\\s+")[[1]]
@@ -91,22 +93,90 @@ parse_genomic_input <- function(genomic_str) {
     return(NULL)
   }
   
-  chr <- parts[1]
-  pos <- as.numeric(parts[2])
-  alleles <- identify_rest(parts[3])
-  return(list(CHR = chr, POS = pos, REF = alleles[1], ALT = alleles[2]))
+  chr <- toupper(parts[1])
+  pos <- suppressWarnings(as.numeric(parts[2]))
+  alleles <- parts[3]
+  items <- strsplit(alleles, "/")[[1]]
+  ref <- toupper(items[1])
+  alt <- toupper(items[2])
+  
+  #Validacion posicion numerica
+  if (is.na(pos)) {
+    showNotification("Posición debe ser numérico",
+                     type= "error", duration = 5)
+    return(NULL)
+    
+  }
+  
+  #Validacion formato chr
+  v_chr <- grepl("^(?:[1-9]|1[0-9]|2[0-2]|X|Y|MT)$", chr, ignore.case = TRUE)
+  
+  if (!v_chr) {
+    showNotification("Cromosoma inválido. Use 1-22, X, Y o MT",
+                     type= "error", duration = 5)
+    return(NULL)
+  }
+  
+  #Validacion formato alelo
+  if (!validate_allele(ref) || !validate_allele(alt)) {
+    showNotification("REF o ALT contienen caracteres inválidos",
+                     type = "error", duration = 5)
+    return(NULL)
+  } else if(ref == alt){
+    showNotification("REF y ALT deben ser diferentes",
+                     type = "error", duration = 5)
+    return(NULL)
+  }
+  
+  v <- validate_ref_allele(chr, pos, ref)
+  
+  #validacion con GRCh38
+  if (!v || is.na(v)) {
+    showNotification("El nucleótido/s referencia no coincide/n con la posición en GRCh38", 
+                     type = "error", duration = 5)
+    return(NULL)
+  }
+
+  return(list(CHR = chr, POS = pos, REF = ref, ALT = alt))
 }
 
 
-identify_rest <- function(rest){
-  
-  items <- strsplit(rest, "/")[[1]]
-  ref <- items[1]
-  alt <- items[2]
-  
-  return(c(ref,alt))
+validate_allele <- function(allele) {
+  grepl("^[ACGT-]+$", allele)
 }
 
+
+validate_ref_allele <- function(chr, pos, ref_input) {
+  
+  # Si inserción, no validar
+  if (ref_input == "-") return(TRUE)
+  
+  tryCatch({
+    
+    server <- "https://rest.ensembl.org"
+    end_pos <- pos + nchar(ref_input) - 1
+    region <- paste0(chr, ":", pos, "..", end_pos)
+    ext <- paste0("/sequence/region/human/", region, "?")
+    
+    r <- httr::GET(
+      paste0(server, ext),
+      httr::content_type("application/json"),
+      httr::timeout(10)
+    )
+    
+    httr::stop_for_status(r)
+    
+    res <- httr::content(r, as = "parsed")
+    
+    ref_genome <- toupper(res$seq)
+    
+    return(ref_genome == toupper(ref_input))
+    
+  }, error = function(e) {
+    message("Error validando REF: ", e$message)
+    return(NA)
+  })
+}
 
 
 
