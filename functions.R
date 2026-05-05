@@ -21,6 +21,8 @@ vcf_to_df <- function(path) {
 }
 
 
+
+
 # De archivo vcf a vcf comprimido + tabix
 process_vcf_plain <- function(path_in, temp_dir) {
   
@@ -75,7 +77,6 @@ parse_hgvsc <- function(hgvsc) {
     return(NULL)
   })
 }
-
 
 
 
