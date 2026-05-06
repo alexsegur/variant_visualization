@@ -1,6 +1,7 @@
 library(VariantAnnotation)
 library(GenomicRanges)
 library(httr)
+library(jsonlite)
 
 ## TODO: Falta separar validaciones de functions.R
 

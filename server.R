@@ -1,5 +1,6 @@
 source("functions.R", local = TRUE)
 library(jsonlite)
+library(JBrowseR)
 
 
 server <- function(input, output, session) {
