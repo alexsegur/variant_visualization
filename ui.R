@@ -1,4 +1,6 @@
-
+library(shinydashboard)
+library(DT)
+library(JBrowseR)
 
 ui <- dashboardPage(
   dashboardHeader(title = "Variant Browser"),

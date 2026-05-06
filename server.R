@@ -1,4 +1,6 @@
 source("functions.R", local = TRUE)
+library(jsonlite)
+
 
 server <- function(input, output, session) {
   

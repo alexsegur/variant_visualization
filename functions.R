@@ -1,3 +1,6 @@
+library(VariantAnnotation)
+library(GenomicRanges)
+library(httr)
 
 ## TODO: Falta separar validaciones de functions.R
 
@@ -70,8 +73,11 @@ parse_hgvsc <- function(hgvsc) {
     
     chr <- res$seq_region_name
     pos <- res$start
-    alleles <- identify_rest(res$allele_string)
-    
+    alleles <- res$allele_string
+    items <- strsplit(alleles, "/")[[1]]
+    ref <- toupper(items[1])
+    alt <- toupper(items[2])
+
     return(list(CHR = chr, POS = pos, REF = alleles[1], ALT = alleles[2]))
     
   }, error = function(e) {
