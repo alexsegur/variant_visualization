@@ -7,10 +7,17 @@ ui <- dashboardPage(
   
   dashboardSidebar( # BARRA IZQUIERDA
     
+    numericInput("window_size", "Entorno (pb):", 
+                 value = 20, min = 20, max = 1000),
+    # No sirve para limitar, se comprueba en server.R
+    
+    hr(), # separador
+    
     # Apartado Busqueda
     h4("Búsqueda de variante", style = "padding-left: 10px; font-weight: bold;"),
     
     tags$div(style = "padding: 0px 12px;",
+             
              radioButtons("variant_input_type", "Formato de entrada:",
                           choices = list(
                             "HGVSc" = "hgvsc",
@@ -31,9 +38,7 @@ ui <- dashboardPage(
                          placeholder = "Ej: 13 32889692 T/C")
              ),
              
-             numericInput("window_size", "Entorno (pb):", 
-                          value = 20, min = 20, max = 1000),
-             # No sirve para limitar, se comprueba en server.R
+             
              
              actionButton("search_variant", "Buscar variante",
                           class = "btn-primary")
@@ -69,7 +74,7 @@ ui <- dashboardPage(
             ),
         
             actionButton("load_vcf_btn", "Visualizar", 
-                     class = "btn-primary", icon = icon("upload"))
+                     class = "btn-primary")
     )
     
   ),

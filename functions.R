@@ -5,6 +5,8 @@ library(jsonlite)
 
 ## TODO: Falta separar validaciones de functions.R
 
+`%||%` <- function(x, y) if (!is.null(x)) x else y
+
 
 # De vcf + tabix a dataframe (para opción de carga de archivos)
 vcf_to_df <- function(path) {
@@ -51,7 +53,7 @@ process_vcf_plain <- function(path_in, temp_dir) {
 
 
 
-# Parsear HGVSc (NM_000059.4:c.-152T>C) en GRCh38
+# Parsear HGVSc (NM_000059.4:c.-152T>CCC) en GRCh38
 # Con anotación de Ensembl API
 parse_hgvsc <- function(hgvsc) {
   
@@ -69,6 +71,7 @@ parse_hgvsc <- function(hgvsc) {
     httr::stop_for_status(r)
     
     res <- httr::content(r, as = "parsed", simplifyVector = TRUE)
+    browser()
     
     if (length(res) == 0) return(NULL)
     
@@ -79,7 +82,7 @@ parse_hgvsc <- function(hgvsc) {
     ref <- toupper(items[1])
     alt <- toupper(items[2])
 
-    return(list(CHR = chr, POS = pos, REF = alleles[1], ALT = alleles[2]))
+    return(list(CHR = chr, POS = pos, REF = ref, ALT = alt))
     
   }, error = function(e) {
     message("Error en parse_hgvsc: ", e$message)
