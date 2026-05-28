@@ -56,7 +56,7 @@ server <- function(input, output, session) {
   observeEvent(input$load_vcf_btn, {
     req(input$load_vcf_btn)
     
-    has_plain <- !is.null(input$vcf_plain) && #TODO: Mejorar Validación triplicada
+    has_plain <- !is.null(input$vcf_plain) &&
       !is.null(input$vcf_plain$datapath) &&
       nzchar(input$vcf_plain$datapath)
     
@@ -76,19 +76,17 @@ server <- function(input, output, session) {
     tryCatch({
       temp_dir <- tempfile("jbrowse_data_")
       dir.create(temp_dir)
-      showNotification(paste("Directorio temporal creado:", basename(temp_dir)), 
-                       type = "message", duration = 5)
       gz_path <- NULL
       
       if (has_plain && input$type_file_mode == 'plain') {
-        showNotification("Procesando VCF plano (ordenando + bgzip + tabix)...", 
+        showNotification("Procesando VCF plano ...", 
                          type = "message", duration = 6)
         
         gz_path <- process_vcf_plain(input$vcf_plain$datapath, temp_dir)
         
       } else if (has_gz && has_tbi && input$type_file_mode == 'bgzip') {
         
-        showNotification("Cargando archivos .vcf.gz + .tbi...", type = "message", duration = 6)
+        showNotification("Procesando VCF comprimido ...", type = "message", duration = 6)
         
         file.copy(input$vcf_file$datapath, file.path(temp_dir, "variants.vcf.gz"), overwrite = TRUE)
         file.copy(input$tbi_file$datapath, file.path(temp_dir, "variants.vcf.gz.tbi"), overwrite = TRUE)

@@ -71,7 +71,7 @@ parse_hgvsc <- function(hgvsc) {
     httr::stop_for_status(r)
     
     res <- httr::content(r, as = "parsed", simplifyVector = TRUE)
-    browser()
+
     
     if (length(res) == 0) return(NULL)
     
