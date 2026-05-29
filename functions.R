@@ -60,18 +60,25 @@ parse_hgvsc <- function(hgvsc) {
   tryCatch({
     
     server <- "https://rest.ensembl.org"
-    ext <- paste0("/vep/human/hgvs/", hgvsc, "?")
+    ext <- paste0("/vep/human/hgvs/", hgvsc, "?",
+                  "mane=1&", #Selecciona el transcripto canónico, mostrando el ID
+                  "AlphaMissense=1&", #Valora peligrosidad missense
+                  "ClinPred=1&", #similar a alphamissense
+                  "Enformer=1&", # Peligrosidad Variantes reguladoras
+                  "CADD=1&", #CADDphred peligrosidad del 0 al 99
+                  "REVEL=1&", #Peligrosidad del 0 al 1
+                  "SIFT=1&") #Peligrosidad para funcion de proteina
     
     r <- httr::GET(
       paste0(server, ext),
       httr::content_type("application/json"),
-      httr::timeout(10)
+      httr::timeout(15)
     )
     
     httr::stop_for_status(r)
     
     res <- httr::content(r, as = "parsed", simplifyVector = TRUE)
-
+    browser()
     
     if (length(res) == 0) return(NULL)
     
@@ -81,6 +88,9 @@ parse_hgvsc <- function(hgvsc) {
     items <- strsplit(alleles, "/")[[1]]
     ref <- toupper(items[1])
     alt <- toupper(items[2])
+    
+    most_severe <- res$most_severe_consequence %||% "."
+    consequences <- res$transcript_consequences
 
     return(list(CHR = chr, POS = pos, REF = ref, ALT = alt))
     
