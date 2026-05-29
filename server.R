@@ -47,6 +47,7 @@ server <- function(input, output, session) {
                          type = "warning", duration = 5)
       }
     }
+    
     vcf_df(data.frame(parsed))
   })
   
@@ -109,7 +110,11 @@ server <- function(input, output, session) {
   
   output$variants_table <- renderDT({
     req(variants_table_data())
-    datatable(variants_table_data(), selection = "single")
+    datatable(variants_table_data(),
+              selection = "single",
+              options = list(
+                scrollX = TRUE,           
+                scrollY = FALSE))
   })
   
   proxy <- dataTableProxy("variants_table")

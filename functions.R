@@ -2,6 +2,7 @@ library(VariantAnnotation)
 library(GenomicRanges)
 library(httr)
 library(jsonlite)
+library(dplyr)
 
 ## TODO: Falta separar validaciones de functions.R
 
@@ -53,14 +54,15 @@ process_vcf_plain <- function(path_in, temp_dir) {
 
 
 
-# Parsear HGVSc (NM_000059.4:c.-152T>CCC) en GRCh38
+# Parsear HGVSc (NM_000059.4:c.7A>G) en GRCh38
 # Con anotación de Ensembl API
 parse_hgvsc <- function(hgvsc) {
   
-  tryCatch({
+  
     
     server <- "https://rest.ensembl.org"
     ext <- paste0("/vep/human/hgvs/", hgvsc, "?",
+                  "canonical=1&", #Selecciona los transcriptos canónicos
                   "mane=1&", #Selecciona el transcripto canónico, mostrando el ID
                   "AlphaMissense=1&", #Valora peligrosidad missense
                   "ClinPred=1&", #similar a alphamissense
@@ -69,35 +71,105 @@ parse_hgvsc <- function(hgvsc) {
                   "REVEL=1&", #Peligrosidad del 0 al 1
                   "SIFT=1&") #Peligrosidad para funcion de proteina
     
-    r <- httr::GET(
-      paste0(server, ext),
-      httr::content_type("application/json"),
-      httr::timeout(15)
-    )
+    r <- tryCatch({
+      httr::GET(
+        paste0(server, ext),
+        httr::content_type("application/json"),
+        httr::timeout(15)
+      )
+    }, error = function(e) {
+      message("Error API: ", e$message)
+      return(NULL)
+    })
     
+    if (is.null(r)) return(NULL)
     httr::stop_for_status(r)
     
     res <- httr::content(r, as = "parsed", simplifyVector = TRUE)
-    browser()
     
     if (length(res) == 0) return(NULL)
     
-    chr <- res$seq_region_name
-    pos <- res$start
-    alleles <- res$allele_string
-    items <- strsplit(alleles, "/")[[1]]
-    ref <- toupper(items[1])
-    alt <- toupper(items[2])
+    chr <- res$seq_region_name %||% "."
+    pos <- res$start %||% "."
+    alleles <- res$allele_string %||% "."
+    items <- strsplit(alleles, "/")[[1]] %||% "."
+    ref <- toupper(items[1]) %||% "."
+    alt <- toupper(items[2]) %||% "."
     
     most_severe <- res$most_severe_consequence %||% "."
-    consequences <- res$transcript_consequences
-
-    return(list(CHR = chr, POS = pos, REF = ref, ALT = alt))
+    input_transcript <- sub(":.*$", "", hgvsc)
     
-  }, error = function(e) {
-    message("Error en parse_hgvsc: ", e$message)
-    return(NULL)
-  })
+    
+    consequences <- res$transcript_consequences
+    selected <- NULL
+    
+    if (!is.null(consequences) && length(consequences) > 0) {
+      
+      # Convertimos a lista de data.frames para facilitar
+      df <- bind_rows(consequences)
+      
+      # Filtrar solo transcriptos canónicos
+      canonical_df <- df[df$canonical == 1, ]
+      
+      # Buscar el transcripto MANE Select
+      mane_rows <- df[!is.na(df$mane_select) & df$mane_select != "", ]
+      
+      if (nrow(mane_rows) > 0) {
+        selected <- mane_rows[mane_rows$mane_select == input_transcript, ]
+      }
+    }
+    
+    get_value <- function(field, nested_field = NULL) {
+      
+      if (is.null(selected)) return("-")
+      
+      # Valor directo
+      if (field %in% names(selected) && is.null(nested_field) &&
+          !is.null(selected[[field]]) && !is.na(selected[[field]])) {
+        return(selected[[field]])
+      }
+      
+      # Valor anidado
+      else if (!is.null(nested_field) &&
+               field %in% names(selected)) {
+        obj <- selected[[field]]
+        
+        if (is.data.frame(obj) &&
+            nested_field %in% names(obj)) {
+          value <- obj[[nested_field]]
+          if (!is.null(value) && !is.na(value)) {
+            return(value)
+          }
+        }
+      }
+      
+      return("-")
+    }
+    
+    alpha_missense <- get_value("alphamissense","am_pathogenicity")
+    alpha_pathogenicity<- get_value("alphamissense","am_class") 
+    cadd_phred <- get_value("cadd_phred")
+    clinpred_score <- get_value("clinpred")
+    revel_score <- get_value("revel")
+    sift_score <- get_value("sift_score")
+    polyphen_score <- get_value("polyphen_score")
+    polyphen_predict <- get_value("polyphen_prediction")
+    enformer_score <- get_value("enformer_sar")
+    
+    browser()
+    
+    return(list(CHR = chr, POS = pos, REF = ref, ALT = alt,
+                "Peor Consecuencia" = most_severe,
+                Alphamissense = alpha_missense,
+                CADD = cadd_phred,
+                Clinpred = ifelse(clinpred_score == "-", "-", round(as.numeric(clinpred_score),3)),
+                REVEL = revel_score,
+                SIFT = sift_score,
+                Polyph. = polyphen_score,
+                "Polyph predict" = polyphen_predict,
+                Enformer = enformer_score
+                ))
+    
 }
 
 
