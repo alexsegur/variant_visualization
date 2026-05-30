@@ -24,7 +24,7 @@ server <- function(input, output, session) {
     
     if (input$variant_input_type == "genomic") {
       req(input$genomic_input, nzchar(trimws(input$genomic_input)))
-      parsed <- parse_genomic_input(input$genomic_input)
+      parsed <- parse_genomic(input$genomic_input)
       
       if (is.null(parsed)) {
         showNotification("Formato genómico inválido. Use: 'chr pos ref/alt'", 
