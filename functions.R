@@ -54,12 +54,10 @@ process_vcf_plain <- function(path_in, temp_dir) {
 
 
 
-# Parsear HGVSc (NM_000059.4:c.7A>G) en GRCh38
-# Con anotación de Ensembl API
+# Parsear HGVSc (NM_000059.4:c.7A>G o NC_000007.14:g.55249071T>A) en GRCh38
+# Con anotación de Ensembl VEP API 
 parse_hgvsc <- function(hgvsc) {
   
-  
-    
     server <- "https://rest.ensembl.org"
     ext <- paste0("/vep/human/hgvs/", hgvsc, "?",
                   "canonical=1&", #Selecciona los transcriptos canónicos
@@ -75,18 +73,28 @@ parse_hgvsc <- function(hgvsc) {
       httr::GET(
         paste0(server, ext),
         httr::content_type("application/json"),
-        httr::timeout(15)
+        httr::timeout(20)
       )
     }, error = function(e) {
-      message("Error API: ", e$message)
+      showNotification( paste("Servicio de busqueda HGVS no disponible:",e), 
+                       type = "error", duration = 5)
       return(NULL)
     })
-    
     if (is.null(r)) return(NULL)
-    httr::stop_for_status(r)
+    
+    codigo <- codigo <- status_code(r)
+    if (codigo == 400) {
+      showNotification("HGVS o parámetros inválidos.", 
+                       type = "error", duration = 5)
+      return (NULL)
+    } else if (codigo != 200){
+      showNotification(paste("Error inesperado con código:", codigo),
+                       type = "error", duration = 5)
+      return(NULL)
+    }
     
     res <- httr::content(r, as = "parsed", simplifyVector = TRUE)
-    
+
     if (length(res) == 0) return(NULL)
     
     chr <- res$seq_region_name %||% "."
@@ -105,18 +113,26 @@ parse_hgvsc <- function(hgvsc) {
     
     if (!is.null(consequences) && length(consequences) > 0) {
       
-      # Convertimos a lista de data.frames para facilitar
       df <- bind_rows(consequences)
       
-      # Filtrar solo transcriptos canónicos
       canonical_df <- df[df$canonical == 1, ]
       
-      # Buscar el transcripto MANE Select
-      mane_rows <- df[!is.na(df$mane_select) & df$mane_select != "", ]
-      
-      if (nrow(mane_rows) > 0) {
-        selected <- mane_rows[mane_rows$mane_select == input_transcript, ]
-      }
+      if (nrow(canonical_df) == 0){
+        selected <- df[1,]
+      } else{
+        mane_rows <- canonical_df[!is.na(canonical_df$mane_select) & canonical_df$mane_select != "", ]
+        if (nrow(mane_rows) > 0) {
+          mane_match <- mane_rows[mane_rows$mane_select == input_transcript, ]
+          if (nrow(mane_match) == 0){
+            selected <- canonical_df[1,]
+          } else{
+            selected <- mane_match[1,]
+            browser()
+          }
+        } else {
+          selected <- canonical_df[1,]
+        }
+      } 
     }
     
     get_value <- function(field, nested_field = NULL) {
@@ -146,6 +162,7 @@ parse_hgvsc <- function(hgvsc) {
       return("-")
     }
     
+    gen <- get_value("gene_symbol")
     alpha_missense <- get_value("alphamissense","am_pathogenicity")
     alpha_pathogenicity<- get_value("alphamissense","am_class") 
     cadd_phred <- get_value("cadd_phred")
@@ -156,11 +173,12 @@ parse_hgvsc <- function(hgvsc) {
     polyphen_predict <- get_value("polyphen_prediction")
     enformer_score <- get_value("enformer_sar")
     
-    browser()
+
     
-    return(list(CHR = chr, POS = pos, REF = ref, ALT = alt,
+    return(list(CHR = chr, POS = pos, REF = ref, ALT = alt, Gen = gen,
                 "Peor Consecuencia" = most_severe,
                 Alphamissense = alpha_missense,
+                Alpha.predict = alpha_pathogenicity,
                 CADD = cadd_phred,
                 Clinpred = ifelse(clinpred_score == "-", "-", round(as.numeric(clinpred_score),3)),
                 REVEL = revel_score,

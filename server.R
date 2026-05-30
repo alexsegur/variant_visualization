@@ -38,14 +38,7 @@ server <- function(input, output, session) {
     } else if (input$variant_input_type == "hgvsc") {
       req(input$hgvsc_input, nzchar(trimws(input$hgvsc_input)))
       parsed <-parse_hgvsc(input$hgvsc_input)
-      
-      if (is.null(parsed)) {
-        showNotification("Formato HGVSc inválido o no encontrado.", 
-                         type = "error", duration = 5)
-      } else {
-        showNotification("Formato HGVSc introducido correctamente.", 
-                         type = "warning", duration = 5)
-      }
+
     }
     
     vcf_df(data.frame(parsed))
