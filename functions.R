@@ -54,10 +54,15 @@ process_vcf_plain <- function(path_in, temp_dir) {
 
 
 
+
+
+
+
 # Parsear HGVSc (NM_000059.4:c.7A>G o NC_000007.14:g.55249071T>A) en GRCh38
 # Con anotación de Ensembl VEP API 
 parse_hgvsc <- function(hgvsc) {
   
+  #Peticion de datos
     server <- "https://rest.ensembl.org"
     ext <- paste0("/vep/human/hgvs/", hgvsc, "?",
                   "canonical=1&", #Selecciona los transcriptos canónicos
@@ -82,7 +87,7 @@ parse_hgvsc <- function(hgvsc) {
     })
     if (is.null(r)) return(NULL)
     
-    codigo <- codigo <- status_code(r)
+    codigo <- status_code(r)
     if (codigo == 400) {
       showNotification("HGVS o parámetros inválidos.", 
                        type = "error", duration = 5)
@@ -94,9 +99,9 @@ parse_hgvsc <- function(hgvsc) {
     }
     
     res <- httr::content(r, as = "parsed", simplifyVector = TRUE)
-
     if (length(res) == 0) return(NULL)
     
+    #Extraemos info basica
     chr <- res$seq_region_name %||% "."
     pos <- res$start %||% "."
     alleles <- res$allele_string %||% "."
@@ -107,7 +112,7 @@ parse_hgvsc <- function(hgvsc) {
     most_severe <- res$most_severe_consequence %||% "."
     input_transcript <- sub(":.*$", "", hgvsc)
     
-    
+    # Procesamos transcript_consequences
     consequences <- res$transcript_consequences
     selected <- NULL
     
@@ -127,7 +132,6 @@ parse_hgvsc <- function(hgvsc) {
             selected <- canonical_df[1,]
           } else{
             selected <- mane_match[1,]
-            browser()
           }
         } else {
           selected <- canonical_df[1,]
@@ -162,6 +166,7 @@ parse_hgvsc <- function(hgvsc) {
       return("-")
     }
     
+    # Aplicamos funcion de extraccion
     gen <- get_value("gene_symbol")
     alpha_missense <- get_value("alphamissense","am_pathogenicity")
     alpha_pathogenicity<- get_value("alphamissense","am_class") 
@@ -169,10 +174,12 @@ parse_hgvsc <- function(hgvsc) {
     clinpred_score <- get_value("clinpred")
     revel_score <- get_value("revel")
     sift_score <- get_value("sift_score")
+    sift_predict <- get_value("sift_prediction")
     polyphen_score <- get_value("polyphen_score")
     polyphen_predict <- get_value("polyphen_prediction")
     enformer_score <- get_value("enformer_sar")
     
+    #Devolvemos datos
     return(list(CHR = chr, POS = pos, REF = ref, ALT = alt, Gen = gen,
                 "Peor Consecuencia" = most_severe,
                 Alphamissense = alpha_missense,
@@ -181,6 +188,7 @@ parse_hgvsc <- function(hgvsc) {
                 Clinpred = ifelse(clinpred_score == "-", "-", round(as.numeric(clinpred_score),3)),
                 REVEL = revel_score,
                 SIFT = sift_score,
+                "SIFT predict" = sift_predict,
                 Polyph. = polyphen_score,
                 "Polyph predict" = polyphen_predict,
                 Enformer = enformer_score
@@ -195,7 +203,7 @@ parse_hgvsc <- function(hgvsc) {
 # Únicamente funciona con formato: "Chr pos ref/alt", vacío = "-"
 parse_genomic <- function(genomic_str) {
   
-  # 1. Validar y parsear el input
+  # Validamos y parseamos el input
   parts <- strsplit(trimws(genomic_str), "\\s+")[[1]]
   
   if (length(parts) != 3) {
@@ -213,19 +221,19 @@ parse_genomic <- function(genomic_str) {
   
   # Validaciones básicas
   if (is.na(pos)) {
-    showNotification("Posición debe ser numérica", type = "error", duration = 5)
+    showNotification("Error con parámetro posición", type = "error", duration = 5)
     return(NULL)
   }
   
-  # Validar cromosoma
+  # Validamos cromosoma
   v_chr <- grepl("^(?:[1-9]|1[0-9]|2[0-2]|X|Y|MT)$", chr, ignore.case = TRUE)
   if (!v_chr) {
-    showNotification("Cromosoma inválido. Use 1-22, X, Y o MT", 
+    showNotification("Cromosoma inválido. Usa 1-22, X, Y o MT", 
                      type = "error", duration = 5)
     return(NULL)
   }
   
-  # Validar formato de alelos
+  # Validamos formato de alelos
   if (!validate_allele(ref) || !validate_allele(alt)) {
     showNotification("REF o ALT contienen caracteres inválidos", 
                      type = "error", duration = 5)
@@ -236,10 +244,7 @@ parse_genomic <- function(genomic_str) {
     return(NULL)
   }
   
-  # 2. Construir la URL para VEP usando region
-  server <- "https://rest.ensembl.org"
-  
-  # Determinar el formato de coordenadas según el tipo de variante
+  # Determina el formato de coordenadas según el tipo de variante
   if (ref == "-") {
     # Inserción: formato START-END/ALT con END = START - 1
     start_pos <- pos
@@ -256,8 +261,9 @@ parse_genomic <- function(genomic_str) {
     end_pos <- pos + nchar(ref) - 1
     variant_allele <- alt
   }
-  browser()
-  # Construir el endpoint
+  
+  # Construimos el url
+  server <- "https://rest.ensembl.org"
   region <- paste0(chr, ":", start_pos, "-", end_pos)
   ext <- paste0("/vep/human/region/", region, "/", variant_allele, "?",
                 "canonical=1&",      # Selecciona transcriptos canónicos
@@ -269,7 +275,7 @@ parse_genomic <- function(genomic_str) {
                 "REVEL=1&",          # Peligrosidad (0-1)
                 "SIFT=1&")           # Peligrosidad función proteica
   
-  # 3. Realizar la llamada a la API
+  # Realiza la llamada API
   r <- tryCatch({
     httr::GET(
       paste0(server, ext),
@@ -277,14 +283,15 @@ parse_genomic <- function(genomic_str) {
       httr::timeout(20)
     )
   }, error = function(e) {
-    showNotification(paste("Servicio de búsqueda VEP no disponible:", e), 
+    showNotification(paste("Servicio de búsqueda no disponible:", e), 
                      type = "error", duration = 5)
     return(NULL)
   })
   
   if (is.null(r)) return(NULL)
   
-  # 4. Manejar códigos de estado HTTP
+  browser()
+  # Maneja códigos 
   codigo <- status_code(r)
   if (codigo == 400) {
     showNotification("Coordenadas o parámetros inválidos.", 
@@ -300,11 +307,11 @@ parse_genomic <- function(genomic_str) {
     return(NULL)
   }
   
-  # 5. Procesar la respuesta
+  # Procesamos la respuesta
   res <- httr::content(r, as = "parsed", simplifyVector = TRUE)
   
   if (length(res) == 0) {
-    showNotification("No se encontraron consecuencias para esta variante", 
+    showNotification("Error. No se pudo recibir informacion de esta variante", 
                      type = "warning", duration = 5)
     return(NULL)
   }
@@ -337,15 +344,13 @@ parse_genomic <- function(genomic_str) {
     if (nrow(canonical_df) == 0) {
       selected <- df[1, ]
     } else {
-      # Verificar que exista 'mane_select'
       if (!"mane_select" %in% names(canonical_df)) {
         selected <- canonical_df[1, ]
       } else {
         mane_rows <- canonical_df[!is.na(canonical_df$mane_select) & 
                                     canonical_df$mane_select != "", ]
         if (nrow(mane_rows) > 0) {
-          # Para genomic input, no tenemos un input_transcript específico
-          # Así que tomamos el primero de MANE
+          # tomamos el primero de MANE
           selected <- mane_rows[1, ]
         } else {
           selected <- canonical_df[1, ]
@@ -387,9 +392,12 @@ parse_genomic <- function(genomic_str) {
   clinpred_score <- get_value("clinpred")
   revel_score <- get_value("revel")
   sift_score <- get_value("sift_score")
+  sift_predict <- get_value("sift_prediction")
   polyphen_score <- get_value("polyphen_score")
   polyphen_predict <- get_value("polyphen_prediction")
   enformer_score <- get_value("enformer_sar")
+  
+  browser()
   
   # 9. Retornar el resultado en el mismo formato que parse_hgvsc
   return(list(CHR = chr, 
@@ -404,6 +412,7 @@ parse_genomic <- function(genomic_str) {
               Clinpred = ifelse(clinpred_score == "-", "-", round(as.numeric(clinpred_score), 3)),
               REVEL = revel_score,
               SIFT = sift_score,
+              "SIFT predict" = sift_predict,
               Polyph. = polyphen_score,
               "Polyph predict" = polyphen_predict,
               Enformer = enformer_score))

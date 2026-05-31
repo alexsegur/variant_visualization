@@ -27,7 +27,7 @@ server <- function(input, output, session) {
       parsed <- parse_genomic(input$genomic_input)
       
       if (is.null(parsed)) {
-        showNotification("Formato genómico inválido. Use: 'chr pos ref/alt'", 
+        showNotification("Error. Algo fue mal.", 
                          type = "error", duration = 5)
       } else {
         showNotification(paste0("Formato genómico introducido correctamente.",
