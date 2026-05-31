@@ -8,8 +8,4 @@ renv/library/
 *.log
 *.tmp
 
-*.vcf
-*.vcf.gz
-*.tbi
-
 notes.R
