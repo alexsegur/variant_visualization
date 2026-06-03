@@ -69,7 +69,6 @@ parse_hgvsc <- function(hgvsc) {
                   "mane=1&", #Selecciona el transcripto canónico, mostrando el ID
                   "AlphaMissense=1&", #Valora peligrosidad missense
                   "ClinPred=1&", #similar a alphamissense
-                  "Enformer=1&", # Peligrosidad Variantes reguladoras
                   "CADD=1&", #CADDphred peligrosidad del 0 al 99
                   "REVEL=1&", #Peligrosidad del 0 al 1
                   "SIFT=1&") #Peligrosidad para funcion de proteina
@@ -177,7 +176,6 @@ parse_hgvsc <- function(hgvsc) {
     sift_predict <- get_value("sift_prediction")
     polyphen_score <- get_value("polyphen_score")
     polyphen_predict <- get_value("polyphen_prediction")
-    enformer_score <- get_value("enformer_sar")
     
     #Devolvemos datos
     return(list(CHR = chr, POS = pos, REF = ref, ALT = alt, Gen = gen,
@@ -190,8 +188,7 @@ parse_hgvsc <- function(hgvsc) {
                 SIFT = sift_score,
                 "SIFT predict" = sift_predict,
                 Polyph. = polyphen_score,
-                "Polyph predict" = polyphen_predict,
-                Enformer = enformer_score
+                "Polyph predict" = polyphen_predict
                 ))
     
 }
@@ -270,7 +267,6 @@ parse_genomic <- function(genomic_str) {
                 "mane=1&",           # Selecciona transcripto MANE
                 "AlphaMissense=1&",  # Valora peligrosidad missense
                 "ClinPred=1&",       # Similar a AlphaMissense
-                "Enformer=1&",       # Peligrosidad variantes reguladoras
                 "CADD=1&",           # CADD phred (0-99)
                 "REVEL=1&",          # Peligrosidad (0-1)
                 "SIFT=1&")           # Peligrosidad función proteica
@@ -395,7 +391,6 @@ parse_genomic <- function(genomic_str) {
   sift_predict <- get_value("sift_prediction")
   polyphen_score <- get_value("polyphen_score")
   polyphen_predict <- get_value("polyphen_prediction")
-  enformer_score <- get_value("enformer_sar")
   
   browser()
   
@@ -414,8 +409,7 @@ parse_genomic <- function(genomic_str) {
               SIFT = sift_score,
               "SIFT predict" = sift_predict,
               Polyph. = polyphen_score,
-              "Polyph predict" = polyphen_predict,
-              Enformer = enformer_score))
+              "Polyph predict" = polyphen_predict))
 }
 
 
