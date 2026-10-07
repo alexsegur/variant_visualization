@@ -286,7 +286,6 @@ parse_genomic <- function(genomic_str) {
   
   if (is.null(r)) return(NULL)
   
-  browser()
   # Maneja códigos 
   codigo <- status_code(r)
   if (codigo == 400) {
@@ -392,7 +391,6 @@ parse_genomic <- function(genomic_str) {
   polyphen_score <- get_value("polyphen_score")
   polyphen_predict <- get_value("polyphen_prediction")
   
-  browser()
   
   # 9. Retornar el resultado en el mismo formato que parse_hgvsc
   return(list(CHR = chr, 
